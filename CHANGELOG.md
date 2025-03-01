@@ -5,7 +5,7 @@
 ### Announcements
 
 - The package is mature enough to merit a 1.0 version
-- New maintainers mikkelking, waldgeist
+- New maintainers ferjep
 
 ### Enhancements
 
