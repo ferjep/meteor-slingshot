@@ -92,10 +92,10 @@ Slingshot.S3Storage = {
    * @param {FileInfo} file
    * @param {Object} [meta]
    *
-   * @returns {UploadInstructions}
+   * @returns {Promise<UploadInstructions>}
    */
 
-  upload: function (method, directive, file, meta) {
+  upload: async function (method, directive, file, meta) {
     var bucket =
         typeof directive.bucket === 'function'
           ? directive.bucket.call(method, file, meta)
@@ -140,7 +140,7 @@ Slingshot.S3Storage = {
 
     this.applyEncryption(payload, meta)
 
-    this.applySignature(region, payload, policy, directive)
+    await this.applySignature(region, payload, policy, directive)
 
     return {
       upload: bucketUrl,
@@ -279,8 +279,8 @@ Slingshot.S3Storage.TempCredentials = _.defaults(
       'AWSSecretAccessKey'
     ),
 
-    applySignature: function (region, payload, policy, directive) {
-      var credentials = directive.temporaryCredentials(directive.expire)
+    applySignature: async function (region, payload, policy, directive) {
+      var credentials = await directive.temporaryCredentials(directive.expire)
 
       check(
         credentials,

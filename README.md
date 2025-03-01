@@ -6,12 +6,12 @@ Direct and secure file-uploads to AWS S3, Google Cloud Storage and others.
 
 ## Looking for maintainers
 
-Please contact mikkelking if you can help maintaining this package
+Please contact ferjep if you can help maintaining this package
 
 ## Install
 
 ```bash
-meteor add mikkelking:slingshot
+meteor add ferjep:slingshot
 ```
 
 ## Why?
@@ -77,7 +77,7 @@ Slingshot.createDirective("myFileUploads", Slingshot.S3Storage, {
   acl: "public-read",
 
   // 'STANDARD' or 'REDUCED_REDUNDANCY'
-  storageClass: 'REDUCED_REDUNDANCY', 
+  storageClass: 'REDUCED_REDUNDANCY',
 
   authorize: function () {
     //Deny uploads if user is not logged in.
@@ -258,15 +258,15 @@ var sts = new AWS.STS(); // Using the AWS SDK to retrieve temporary credentials.
 
 Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
   bucket: 'myBucket',
-  temporaryCredentials: Meteor.wrapAsync(function (expire, callback) {
+  async temporaryCredentials (expire) {
     //AWS dictates that the minimum duration must be 900 seconds:
     var duration = Math.max(Math.round(expire / 1000), 900);
 
-    sts.getSessionToken({
-        DurationSeconds: duration
-    }, function (error, result) {
-      callback(error, result && result.Credentials);
-    });
+    // Depends if your using AWS SDK v2 or v3.
+    // for v3 sts.getSessionToken() returns a promise
+    const result = await sts.getSessionToken({ DurationSeconds: duration })
+
+    return result.Credentials;
   })
 });
 ```
@@ -386,7 +386,7 @@ curl -I -X POST -H 'X-Auth-Token: yourAuthToken' \
 
 ### Cloudinary
 
-Cloudinary is supported via a 3rd party package.  
+Cloudinary is supported via a 3rd party package.
 [jimmiebtlr:cloudinary](https://atmospherejs.com/jimmiebtlr/slingshot-cloudinary)
 
 ## Browser Compatibility
@@ -576,7 +576,7 @@ If a function is provided, it will be called with `userId` in the context and
 its return value is used as the region. First argument is file info and the
 second is the meta-information that can be passed by the client.
 
-`temporaryCredentials` Function (**required**) - Function that generates temporary
+`temporaryCredentials` Async Function (**required**) - Function that generates temporary
 credentials. It takes a signle argument, which is the minumum desired expiration
 time in milli-seconds and it returns an object that contains `AccessKeyId`,
 `SecretAccessKey` and `SessionToken`.
