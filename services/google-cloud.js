@@ -1,47 +1,55 @@
-import { _ } from 'meteor/underscore';
+import { setDefaults } from '../lib/helpers';
 
 //GoogleCloud is based on the very same api as AWS S3, so we extend it:
 
-Slingshot.GoogleCloud = _.defaults({
+Slingshot.GoogleCloud = setDefaults({
 
   accessId: "GoogleAccessId",
   secretKey: "GoogleSecretKey",
 
-  directiveMatch: _.chain(Slingshot.S3Storage.directiveMatch)
-    .omit(Slingshot.S3Storage.accessId, Slingshot.S3Storage.secretKey, "region")
-    .extend({
-      GoogleAccessId: String,
-      GoogleSecretKey: String,
+  directiveMatch: {
+    ...Slingshot.S3Storage.directiveMatch,
+    AWSAccessKeyId: undefined,
+    AWSSecretAccessKey: undefined,
+    region: undefined,
 
-      acl: Match.Optional(Match.Where(function (acl) {
-        check(acl, String);
+    GoogleAccessId: String,
+    GoogleSecretKey: String,
 
-        return [
-            "project-private",
-            "private",
-            "public-read",
-            "public-read-write",
-            "authenticated-read",
-            "bucket-owner-read",
-            "bucket-owner-full-control"
-          ].indexOf(acl) >= 0;
-      }))
-    })
-    .value(),
+    acl: Match.Optional(Match.Where(function (acl) {
+      check(acl, String);
 
-  directiveDefault:  _.chain(Meteor.settings)
-    .pick("GoogleAccessId")
-    .extend(Slingshot.S3Storage.directiveDefault, {
-      bucketUrl: function (bucket) {
-        return "https://" + bucket + ".storage.googleapis.com";
-      }
-    })
-    .omit(Slingshot.S3Storage.accessId, Slingshot.S3Storage.secretKey, "region")
-    .value(),
+      return [
+          "project-private",
+          "private",
+          "public-read",
+          "public-read-write",
+          "authenticated-read",
+          "bucket-owner-read",
+          "bucket-owner-full-control"
+        ].indexOf(acl) >= 0;
+    }))
+  },
+
+  directiveDefault: {
+    ...Slingshot.S3Storage.directiveDefault,
+    AWSAccessKeyId: undefined,
+    AWSSecretAccessKey: undefined,
+    region: undefined,
+
+    GoogleAccessId: Meteor.settings?.GoogleAccessId,
+    bucketUrl: function (bucket) {
+      return "https://" + bucket + ".storage.googleapis.com";
+    },
+  },
 
   applySignature: function (payload, policy, directive) {
     payload[this.accessId] = directive[this.accessId];
-    payload.policy = policy.match(_.omit(payload, this.accessId)).stringify();
+
+    const payloadToSign = { ...payload };
+    delete payloadToSign[this.accessId];
+
+    payload.policy = policy.match(payloadToSign).stringify();
     payload.signature = this.sign(directive[this.secretKey], payload.policy);
   },
 

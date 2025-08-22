@@ -9,7 +9,6 @@ Package.onUse(function (api) {
   api.versionsFrom('3.0');
 
   api.use(['check', 'ecmascript'])
-  api.use(['underscore'], 'server')
   api.use(['tracker', 'reactive-var'], 'client')
 
   api.addFiles([
@@ -31,6 +30,6 @@ Package.onUse(function (api) {
 })
 
 Package.onTest(function (api) {
-  api.use(["tinytest", "underscore", "edgee:slingshot"]);
+  api.use(["tinytest", "ferjep:slingshot"]);
   api.addFiles("test/aws-s3.js", "server");
 });

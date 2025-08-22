@@ -1,5 +1,3 @@
-import { _ } from 'meteor/underscore';
-
 Slingshot.RackspaceFiles = {
 
   directiveMatch: {
@@ -17,13 +15,12 @@ Slingshot.RackspaceFiles = {
     deleteAfter: Match.Optional(Number)
   },
 
-  directiveDefault: _.chain(Meteor.settings)
-    .pick("RackspaceAccountId", "RackspaceMetaDataKey")
-    .extend({
-      region: "iad3",
-      expire: 5 * 60 * 1000 //in 5 minutes
-    })
-    .value(),
+  directiveDefault: {
+    RackspaceAccountId: Meteor.settings?.RackspaceAccountId,
+    RackspaceMetaDataKey: Meteor.settings?.RackspaceMetaDataKey,
+    region: "iad3",
+    expire: 5 * 60 * 1000 //in 5 minutes
+  },
 
   version: "v1",
 
@@ -38,12 +35,12 @@ Slingshot.RackspaceFiles = {
 
   pathPrefix: function (method, directive, file, meta) {
     if ("pathPrefix" in directive) {
-      return (_.isFunction(directive.pathPrefix) ?
-        directive.pathPrefix.call(method, file, meta) : directive.pathPrefix);
+      return typeof directive.pathPrefix === 'function'
+        ? directive.pathPrefix.call(method, file, meta)
+        : directive.pathPrefix;
     }
-    else {
-      return "";
-    }
+
+    return "";
   },
 
   host: function (region) {
@@ -104,7 +101,7 @@ Slingshot.RackspaceFiles = {
 
   sign: function (secretkey, path, data) {
     /* global Buffer: false */
-    var policy = path + "\n" + _.pluck(data, "value").join("\n");
+    const policy = path + "\n" + data.map(item => item.value).join("\n");
 
     return Npm.require("crypto")
       .createHmac("sha1", secretkey)

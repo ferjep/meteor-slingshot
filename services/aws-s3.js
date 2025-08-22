@@ -1,4 +1,4 @@
-import { _ } from 'meteor/underscore'
+import { setDefaults } from '../lib/helpers'
 
 Slingshot.S3Storage = {
   accessId: 'AWSAccessKeyId',
@@ -151,20 +151,17 @@ Slingshot.S3Storage = {
           value: payload.key,
         },
       ].concat(
-        _.chain(payload)
-          .omit('key')
-          .map(function (value, name) {
-            return (
-              !_.isUndefined(value) && {
-                name: name,
-                value: value,
-              }
-            )
+        Object.entries(payload)
+          .map(([name, value]) => {
+            // Ignore 'key' as it is already included
+            if (name !== 'key' && value !== undefined) {
+              return { name: name, value: value, };
+            }
+            return null;
           })
-          .compact()
-          .value()
+          .filter(item => item !== null)
       ),
-    }
+    };
   },
 
   /** Applies signature an upload payload
@@ -182,7 +179,7 @@ Slingshot.S3Storage = {
         formatNumber(now.getUTCDate(), 2),
       service = 's3'
 
-    _.extend(payload, {
+    Object.assign(payload, {
       'x-amz-algorithm': 'AWS4-HMAC-SHA256',
       'x-amz-credential': [
         directive[this.accessId],
@@ -259,28 +256,28 @@ Slingshot.S3Storage = {
         }
       }
 
-      _.extend(payload, encryptionData)
+      Object.assign(payload, encryptionData)
     }
   },
 }
 
-Slingshot.S3Storage.TempCredentials = _.defaults(
+Slingshot.S3Storage.TempCredentials = setDefaults(
   {
-    directiveMatch: _.chain(Slingshot.S3Storage.directiveMatch)
-      .omit('AWSAccessKeyId', 'AWSSecretAccessKey')
-      .extend({
-        temporaryCredentials: Function,
-      })
-      .value(),
+    directiveMatch: {
+      ...Slingshot.S3Storage.directiveMatch,
+      temporaryCredentials: Function,
+      AWSAccessKeyId: undefined,
+      AWSSecretAccessKey: undefined
+    },
 
-    directiveDefault: _.omit(
-      Slingshot.S3Storage.directiveDefault,
-      'AWSAccessKeyId',
-      'AWSSecretAccessKey'
-    ),
+    directiveDefault: {
+      ...Slingshot.S3Storage.directiveDefault,
+      AWSAccessKeyId: undefined,
+      AWSSecretAccessKey: undefined
+    }
 
     applySignature: async function (region, payload, policy, directive) {
-      var credentials = await directive.temporaryCredentials(directive.expire)
+      const credentials = await directive.temporaryCredentials(directive.expire)
 
       check(
         credentials,
@@ -298,7 +295,7 @@ Slingshot.S3Storage.TempCredentials = _.defaults(
         region,
         payload,
         policy,
-        _.defaults(
+        setDefaults(
           {
             AWSAccessKeyId: credentials.AccessKeyId,
             AWSSecretAccessKey: credentials.SecretAccessKey,

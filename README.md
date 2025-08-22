@@ -512,7 +512,6 @@ Slingshot.createDirective("myUploads", MyStorageService, {
 
 Meteor core packages:
 
-- underscore
 - tracker
 - reactive-var
 - check
