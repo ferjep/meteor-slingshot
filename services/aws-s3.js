@@ -274,7 +274,7 @@ Slingshot.S3Storage.TempCredentials = setDefaults(
       ...Slingshot.S3Storage.directiveDefault,
       AWSAccessKeyId: undefined,
       AWSSecretAccessKey: undefined
-    }
+    },
 
     applySignature: async function (region, payload, policy, directive) {
       const credentials = await directive.temporaryCredentials(directive.expire)
