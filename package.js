@@ -3,33 +3,33 @@ Package.describe({
   summary: 'Directly post files to cloud storage services, such as AWS-S3.',
   version: '3.0.1',
   git: 'https://github.com/ferjep/meteor-slingshot',
-})
+});
 
 Package.onUse(function (api) {
   api.versionsFrom('3.0');
 
-  api.use(['check', 'ecmascript'])
-  api.use(['tracker', 'reactive-var'], 'client')
+  api.use(['check', 'ecmascript']);
+  api.use(['tracker', 'reactive-var'], 'client');
 
   api.addFiles([
-    "lib/restrictions.js",
-    "lib/validators.js"
+    'lib/restrictions.js',
+    'lib/validators.js',
   ]);
 
-  api.addFiles("lib/upload.js", "client");
+  api.addFiles('lib/upload.js', 'client');
 
   api.addFiles([
-    "lib/directive.js",
-    "lib/storage-policy.js",
-    "services/aws-s3.js",
-    "services/google-cloud.js",
-    "services/rackspace.js"
-  ], "server");
+    'lib/directive.js',
+    'lib/storage-policy.js',
+    'services/aws-s3.js',
+    'services/google-cloud.js',
+    'services/rackspace.js',
+  ], 'server');
 
-  api.export('Slingshot')
-})
+  api.export('Slingshot');
+});
 
 Package.onTest(function (api) {
-  api.use(["tinytest", "ferjep:slingshot"]);
-  api.addFiles("test/aws-s3.js", "server");
+  api.use(['tinytest', 'ferjep:slingshot']);
+  api.addFiles('test/aws-s3.js', 'server');
 });

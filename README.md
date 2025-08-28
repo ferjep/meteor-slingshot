@@ -38,7 +38,7 @@ other stateful criteria such as the current meteor user.
 On the client side we can now upload files through to the bucket:
 
 ```JavaScript
-var uploader = new Slingshot.Upload("myFileUploads");
+const uploader = new Slingshot.Upload("myFileUploads");
 
 uploader.send(document.getElementById('input').files[0], function (error, downloadUrl) {
   if (error) {
@@ -82,16 +82,16 @@ Slingshot.createDirective("myFileUploads", Slingshot.S3Storage, {
   authorize: function () {
     //Deny uploads if user is not logged in.
     if (!this.userId) {
-      var message = "Please login before posting files";
+      const message = "Please login before posting files";
       throw new Meteor.Error("Login Required", message);
     }
 
     return true;
   },
 
-  key: function (file) {
+  key: async function (file) {
     //Store file into a directory by the user's username.
-    var user = Meteor.users.findOne(this.userId);
+    const user = await Meteor.users.findOneAsync(this.userId);
     return user.username + "/" + file.name;
   }
 });
@@ -173,8 +173,8 @@ its own directory where its pictures are stored.
 We declare our client-side uploader as follows:
 
 ```JavaScript
-var metaContext = {albumId: album._id}
-var uploadToMyAlbum = new Slingshot.Upload("picturealbum", metaContext);
+const metaContext = {albumId: album._id}
+const uploadToMyAlbum = new Slingshot.Upload("picturealbum", metaContext);
 ```
 
 On the server side the directive can now set the key accordingly and check if
@@ -185,7 +185,7 @@ Slingshot.createDirective("picturealbum", Slingshot.GoogleCloud, {
   acl: "public-read",
 
   authorize: function (file, metaContext) {
-    var album = Albums.findOne(metaContext.albumId);
+    const album = await Albums.findOneAsync(metaContext.albumId);
 
     //Denied if album doesn't exist or if it is not owned by the current user.
     return album && album.userId === this.userId;
@@ -202,9 +202,9 @@ Slingshot.createDirective("picturealbum", Slingshot.GoogleCloud, {
 You can check if a file uploadable according to file-restrictions as follows:
 
 ```JavaScript
-var uploader = new Slingshot.Upload("myFileUploads");
+const uploader = new Slingshot.Upload("myFileUploads");
 
-var error = uploader.validate(document.getElementById('input').files[0]);
+const error = await uploader.validate(document.getElementById('input').files[0]);
 if (error) {
   console.error(error);
 }
@@ -254,13 +254,13 @@ For extra security you can use
 [temporary credentials](http://docs.aws.amazon.com/STS/latest/UsingSTS/CreatingSessionTokens.html) to sign upload requests.
 
 ```JavaScript
-var sts = new AWS.STS(); // Using the AWS SDK to retrieve temporary credentials.
+const sts = new AWS.STS(); // Using the AWS SDK to retrieve temporary credentials.
 
 Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
   bucket: 'myBucket',
   async temporaryCredentials (expire) {
     //AWS dictates that the minimum duration must be 900 seconds:
-    var duration = Math.max(Math.round(expire / 1000), 900);
+    const duration = Math.max(Math.round(expire / 1000), 900);
 
     // Depends if your using AWS SDK v2 or v3.
     // for v3 sts.getSessionToken() returns a promise
@@ -275,15 +275,13 @@ If you are running slingshot on an EC2 instance, you can conveniantly retreive
 your access keys with [`AWS.EC2MetadataCredentials`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/EC2MetadataCredentials.html):
 
 ```JavaScript
-var credentials = new AWS.EC2MetadataCredentials();
-
-var updateCredentials = Meteor.wrapAsync(credentials.get, credentials);
+const credentials = new AWS.EC2MetadataCredentials();
 
 Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
   bucket: 'myBucket',
-  temporaryCredentials: function () {
+  temporaryCredentials: async function () {
     if (credentials.needsRefresh()) {
-      updateCredentials();
+      await credentials.get()
     }
 
     return {
@@ -300,7 +298,7 @@ Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
 You can enable server-side encryption by setting the "sse" key in the metaContext accordingly.
 
 ```JavaScript
-var uploadToMyAlbum = new Slingshot.Upload("picturealbum", {
+const uploadToMyAlbum = new Slingshot.Upload("picturealbum", {
   sse: true
 });
 ```
@@ -369,7 +367,7 @@ Slingshot.createDirective("rackspace-files-example", Slingshot.RackspaceFiles, {
 
   pathPrefix: function (file) {
     //Store file into a directory by the user's username.
-    var user = Meteor.users.findOne(this.userId);
+    const user = await Meteor.users.findOneAsync(this.userId);
     return user.username;
   }
 });
@@ -454,10 +452,10 @@ MyStorageService = {
    * @returns {UploadInstructions}
    */
 
-  upload: function (method, directive, file, meta) {
-    var accessKey = directive.accessKey;
+  upload: async function (method, directive, file, meta) {
+    const accessKey = directive.accessKey;
 
-    var fooData = directive.foo && directive.foo.call(method, file, meta);
+    const fooData = directive.foo && await directive.foo.call(method, file, meta);
 
     //Here you need to make sure that all parameters passed in the directive
     //are going to be enforced by the server receiving the file.

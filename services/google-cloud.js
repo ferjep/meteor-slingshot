@@ -1,11 +1,11 @@
 import { setDefaults } from '../lib/helpers';
 
-//GoogleCloud is based on the very same api as AWS S3, so we extend it:
+// GoogleCloud is based on the very same api as AWS S3, so we extend it:
 
 Slingshot.GoogleCloud = setDefaults({
 
-  accessId: "GoogleAccessId",
-  secretKey: "GoogleSecretKey",
+  accessId: 'GoogleAccessId',
+  secretKey: 'GoogleSecretKey',
 
   directiveMatch: {
     ...Slingshot.S3Storage.directiveMatch,
@@ -20,15 +20,15 @@ Slingshot.GoogleCloud = setDefaults({
       check(acl, String);
 
       return [
-          "project-private",
-          "private",
-          "public-read",
-          "public-read-write",
-          "authenticated-read",
-          "bucket-owner-read",
-          "bucket-owner-full-control"
-        ].indexOf(acl) >= 0;
-    }))
+        'project-private',
+        'private',
+        'public-read',
+        'public-read-write',
+        'authenticated-read',
+        'bucket-owner-read',
+        'bucket-owner-full-control',
+      ].indexOf(acl) >= 0;
+    })),
   },
 
   directiveDefault: {
@@ -39,7 +39,7 @@ Slingshot.GoogleCloud = setDefaults({
 
     GoogleAccessId: Meteor.settings?.GoogleAccessId,
     bucketUrl: function (bucket) {
-      return "https://" + bucket + ".storage.googleapis.com";
+      return 'https://' + bucket + '.storage.googleapis.com';
     },
   },
 
@@ -60,9 +60,9 @@ Slingshot.GoogleCloud = setDefaults({
    */
 
   sign: function (secretKey, policy) {
-    return Npm.require("crypto")
+    return Npm.require('crypto')
       .createSign('RSA-SHA256')
       .update(policy)
-      .sign(secretKey, "base64");
-  }
+      .sign(secretKey, 'base64');
+  },
 }, Slingshot.S3Storage);

@@ -1,20 +1,21 @@
-import { expect } from "chai";
-import directive from "./lib/directive";
+/* global it, describe */
 
-describe("slingshot", function () {
-  it("restrictions", function () {
+import { expect } from 'chai';
+
+describe('slingshot', function () {
+  it('restrictions', function () {
     expect(1).to.be.equal(1);
     expect(function () {
-      Slingshot.fileRestrictions("myFileUploads", {
-        allowedFileTypes: ["image/png", "image/jpeg", "image/gif"],
+      Slingshot.fileRestrictions('myFileUploads', {
+        allowedFileTypes: ['image/png', 'image/jpeg', 'image/gif'],
         maxSize: 10 * 1024 * 1024, // 10 MB (use null for unlimited).
       });
     }).not.to.throw();
   });
-  it("create a directive", function () {
+  it('create a directive', function () {
     expect(function () {
       const directive = Slingshot.createDirective(
-        "myFileUploads",
+        'myFileUploads',
         Slingshot.S3Storage,
         {
           // Here we get a key from the Meteor settings (private)
@@ -25,35 +26,35 @@ describe("slingshot", function () {
           bucket: Meteor.settings.private.ENV_DOCUMENTS_BUCKET,
           region: Meteor.settings.private.ENV_S3_REGION,
 
-          acl: "public-read",
+          acl: 'public-read',
 
           // 'STANDARD' or 'REDUCED_REDUNDANCY'
-          storageClass: "REDUCED_REDUNDANCY",
+          storageClass: 'REDUCED_REDUNDANCY',
 
           authorize: function () {
-            //Deny uploads if user is not logged in.
+            // Deny uploads if user is not logged in.
             if (!this.userId) {
-              var message = "Please login before posting files";
-              throw new Meteor.Error("Login Required", message);
+              throw new Meteor.Error('Login Required', 'Please login before posting files');
             }
 
             return true;
           },
 
-          key: function (file) {
-            //Store file into a directory by the user's username.
-            var user = Meteor.users.findOne(this.userId);
-            return user.username + "/" + file.name;
+          key: async function (file) {
+            // Store file into a directory by the user's username.
+            const user = await Meteor.users.findOneAsync(this.userId);
+
+            return user.username + '/' + file.name;
           },
-        }
+        },
       );
       // Check that the explicitly supplied key is there
       expect(directive._directive.AWSAccessKeyId).to.equal(
-        Meteor.settings.private.ENV_S3_ACCESS_KEY_ID
+        Meteor.settings.private.ENV_S3_ACCESS_KEY_ID,
       );
       // Check that the default key is picked up
       expect(directive._directive.AWSSecretAccessKey).to.equal(
-        Meteor.settings.AWSSecretAccessKey
+        Meteor.settings.AWSSecretAccessKey,
       );
     }).not.to.throw();
   });
@@ -73,21 +74,21 @@ Slingshot.createDirective("myFileUploads", Slingshot.S3Storage, {
   acl: "public-read",
 
   // 'STANDARD' or 'REDUCED_REDUNDANCY'
-  storageClass: 'REDUCED_REDUNDANCY', 
+  storageClass: 'REDUCED_REDUNDANCY',
 
   authorize: function () {
     //Deny uploads if user is not logged in.
     if (!this.userId) {
-      var message = "Please login before posting files";
+      const message = "Please login before posting files";
       throw new Meteor.Error("Login Required", message);
     }
 
     return true;
   },
 
-  key: function (file) {
+  key: async function (file) {
     //Store file into a directory by the user's username.
-    var user = Meteor.users.findOne(this.userId);
+    const user = await Meteor.users.findOneAsync(this.userId);
     return user.username + "/" + file.name;
   }
 });

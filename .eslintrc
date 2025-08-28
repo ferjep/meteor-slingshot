@@ -1,0 +1,84 @@
+{
+    "parser": "@babel/eslint-parser",
+    "parserOptions": {
+        "allowImportExportEverywhere": true,
+        "ecmaVersion": 8,
+        "requireConfigFile": false
+    },
+    "plugins": [
+        "meteor",
+        "immutable",
+        "mocha"
+    ],
+    "extends": [
+        "airbnb",
+        "@quave/quave"
+    ],
+    "settings": {
+        "import/resolver": "meteor"
+    },
+    "globals": {
+      "Slingshot": "writable",
+      "window": "readonly",
+      "cordova": "readonly",
+      "matchAllowedFileTypes": "writable",
+      "FileTransfer": "readonly"
+    },
+    "env": {
+      "meteor": true,
+      "browser": true,
+      "node": true,
+    },
+    "rules": {
+        "indent": [
+            2,
+            2,
+            {
+                "SwitchCase": 1
+            }
+        ],
+        "max-len": [
+            2,
+            150
+        ],
+        "quotes": ["error", "single"],
+        "prefer-template": "off",
+        "no-console": "off",
+        "no-debugger": "off",
+        "no-underscore-dangle": "off",
+        "quote-props": "off",
+        "func-names": "off",
+        "no-lonely-if": "off",
+        "prefer-arrow-callback": "off",
+        "object-curly-spacing": "off",
+        "no-self-compare": "off",
+        "no-proto": "off",
+        "no-continue": "off",
+        "no-tabs": "off",
+        "no-restricted-syntax": "off",
+        "jsx-a11y/href-no-hash": "off",
+        "no-multi-spaces": "off",
+        "immutable/no-mutation": 0,
+        "object-curly-newline": "off",
+        "import/no-cycle": "off",
+        "operator-linebreak": "warn",
+        "no-await-in-loop": "off",
+        "mocha/no-exclusive-tests": "error",
+        "mocha/no-async-describe": "error",
+        "mocha/no-identical-title": "warn",
+        "mocha/handle-done-callback": "error",
+        "prefer-object-spread": "error",
+        "no-return-await": "off",
+        "react/function-component-definition": [
+            2,
+            {
+                "namedComponents": "arrow-function",
+                "unnamedComponents": "arrow-function"
+            }
+        ],
+        "comma-dangle": ["error", "always-multiline"],
+        "import/no-default-export": "off",
+        "@quave/meteor-quave/no-sync-mongo-methods-on-server": "off",
+        "object-shorthand": ["error", "properties"]
+    }
+}
