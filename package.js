@@ -1,7 +1,7 @@
 Package.describe({
   name: 'ferjep:slingshot',
   summary: 'Directly post files to cloud storage services, such as AWS-S3.',
-  version: '3.0.1',
+  version: '3.1.0',
   git: 'https://github.com/ferjep/meteor-slingshot',
 });
 
