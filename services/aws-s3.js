@@ -117,11 +117,11 @@ Slingshot.S3Storage = {
    */
 
   upload: async function (method, directive, file, meta) {
-    const bucket =        typeof directive.bucket === 'function'
+    const bucket = typeof directive.bucket === 'function'
       ? await directive.bucket.call(method, file, meta)
       : directive.bucket;
 
-    const region =        typeof directive.region === 'function'
+    const region = typeof directive.region === 'function'
       ? await directive.region.call(method, file, meta)
       : directive.region;
 
@@ -130,8 +130,7 @@ Slingshot.S3Storage = {
       .contentLength(0, Math.min(file.size, directive.maxSize || Infinity));
 
     const payload = {
-      key:
-          typeof directive.key === 'function'
+      key: typeof directive.key === 'function'
             ? await directive.key.call(method, file, meta)
             : directive.key,
 
@@ -141,11 +140,11 @@ Slingshot.S3Storage = {
       acl: directive.acl,
 
       'Cache-Control': directive.cacheControl,
-      'Content-Disposition': this.getContentDisposition(method, directive, file, meta),
+      'Content-Disposition': await this.getContentDisposition(method, directive, file, meta),
     };
 
     const bucketUrl = typeof directive.bucketUrl === 'function'
-      ? directive.bucketUrl(bucket, region)
+      ? await directive.bucketUrl(bucket, region)
       : directive.bucketUrl;
 
     const downloadUrl = [directive.cdn || bucketUrl, payload.key]
@@ -159,9 +158,9 @@ Slingshot.S3Storage = {
     const storeClass = directive.storageClass || 'STANDARD';
     payload['x-amz-storage-class'] = storeClass;
 
-    this.applyEncryption(payload, meta);
+    await this.applyEncryption(payload, meta);
 
-    this.applySignature(region, payload, policy, directive);
+    await this.applySignature(region, payload, policy, directive);
 
     return {
       upload: bucketUrl,
