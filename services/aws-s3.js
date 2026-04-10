@@ -375,6 +375,7 @@ async function buildPresignedUploadInstructions(s3Client, { bucket, region, key 
     download: downloadUrl,
     postData: [],
     method: 'PUT',
+    contentDisposition: contentDisposition || null,
   };
 }
 
