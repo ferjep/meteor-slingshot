@@ -5,6 +5,11 @@ Package.describe({
   git: 'https://github.com/ferjep/meteor-slingshot',
 });
 
+Npm.depends({
+  '@aws-sdk/client-s3': '3.864.0',
+  '@aws-sdk/s3-request-presigner': '3.864.0',
+});
+
 Package.onUse(function (api) {
   api.versionsFrom('3.0');
 

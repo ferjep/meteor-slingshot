@@ -326,3 +326,142 @@ Slingshot.S3Storage.TempCredentials = setDefaults(
   },
   Slingshot.S3Storage,
 );
+
+/**
+ * Generates a presigned S3 PUT URL for a file upload.
+ * The URL is scoped to one key and expires after the directive's `expire` duration.
+ * No credentials are sent to the browser.
+ *
+ * @param {S3Client} s3Client
+ * @param {{bucket: string, region: string, key: string}} params
+ * @param {FileInfo} file
+ * @param {Directive} directive
+ * @param {number} expiresIn - expiry in seconds
+ * @returns {Promise<{upload: string, download: string, postData: [], method: string}>}
+ */
+async function buildPresignedUploadInstructions(s3Client, { bucket, region, key }, file, directive, expiresIn) {
+  const { PutObjectCommand } = Npm.require('@aws-sdk/client-s3');
+  const { getSignedUrl } = Npm.require('@aws-sdk/s3-request-presigner');
+
+  const commandInput = {
+    Bucket: bucket,
+    Key: key,
+    ContentType: file.type,
+  };
+
+  if (directive.acl) commandInput.ACL = directive.acl;
+  if (directive.cacheControl) commandInput.CacheControl = directive.cacheControl;
+  if (directive.storageClass) commandInput.StorageClass = directive.storageClass;
+
+  const contentDisposition = Slingshot.S3Storage.getContentDisposition(null, directive, file, null);
+  if (contentDisposition) commandInput.ContentDisposition = contentDisposition;
+
+  const presignedUrl = await getSignedUrl(
+    s3Client,
+    new PutObjectCommand(commandInput),
+    { expiresIn },
+  );
+
+  const bucketUrl = typeof directive.bucketUrl === 'function'
+    ? await directive.bucketUrl(bucket, region)
+    : directive.bucketUrl;
+
+  const downloadUrl = [directive.cdn || bucketUrl, key]
+    .map((part) => part.replace(/\/+$/, ''))
+    .join('/');
+
+  return {
+    upload: presignedUrl,
+    download: downloadUrl,
+    postData: [],
+    method: 'PUT',
+  };
+}
+
+/**
+ * Presigned PUT URL variant of S3Storage.
+ * Uses AWSAccessKeyId and AWSSecretAccessKey directly (same as S3Storage).
+ * No credentials are sent to the browser.
+ */
+Slingshot.S3Storage.PresignedUrl = setDefaults(
+  {
+    upload: async function (method, directive, file, meta) {
+      const { S3Client } = Npm.require('@aws-sdk/client-s3');
+
+      const bucket = typeof directive.bucket === 'function'
+        ? await directive.bucket.call(method, file, meta)
+        : directive.bucket;
+
+      const region = typeof directive.region === 'function'
+        ? await directive.region.call(method, file, meta)
+        : directive.region;
+
+      const key = typeof directive.key === 'function'
+        ? await directive.key.call(method, file, meta)
+        : directive.key;
+
+      const s3Client = new S3Client({
+        region,
+        credentials: {
+          accessKeyId: directive[this.accessId],
+          secretAccessKey: directive[this.secretKey],
+        },
+      });
+
+      const expiresIn = Math.max(Math.round(directive.expire / 1000), 1);
+
+      return buildPresignedUploadInstructions(s3Client, { bucket, region, key }, file, directive, expiresIn);
+    },
+  },
+  Slingshot.S3Storage,
+);
+
+/**
+ * Presigned PUT URL variant of TempCredentials.
+ * Uses temporaryCredentials() to get short-lived AWS credentials server-side,
+ * then generates a presigned PUT URL. No credentials are sent to the browser.
+ */
+Slingshot.S3Storage.TempCredentials.PresignedUrl = setDefaults(
+  {
+    upload: async function (method, directive, file, meta) {
+      const { S3Client } = Npm.require('@aws-sdk/client-s3');
+
+      const credentials = await directive.temporaryCredentials(directive.expire);
+
+      check(
+        credentials,
+        Match.ObjectIncluding({
+          AccessKeyId: String,
+          SecretAccessKey: String,
+          SessionToken: String,
+        }),
+      );
+
+      const bucket = typeof directive.bucket === 'function'
+        ? await directive.bucket.call(method, file, meta)
+        : directive.bucket;
+
+      const region = typeof directive.region === 'function'
+        ? await directive.region.call(method, file, meta)
+        : directive.region;
+
+      const key = typeof directive.key === 'function'
+        ? await directive.key.call(method, file, meta)
+        : directive.key;
+
+      const s3Client = new S3Client({
+        region,
+        credentials: {
+          accessKeyId: credentials.AccessKeyId,
+          secretAccessKey: credentials.SecretAccessKey,
+          sessionToken: credentials.SessionToken,
+        },
+      });
+
+      const expiresIn = Math.max(Math.round(directive.expire / 1000), 1);
+
+      return buildPresignedUploadInstructions(s3Client, { bucket, region, key }, file, directive, expiresIn);
+    },
+  },
+  Slingshot.S3Storage.TempCredentials,
+);
