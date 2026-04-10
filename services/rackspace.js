@@ -49,8 +49,10 @@ Slingshot.RackspaceFiles = {
 
   maxSize: 0x140000000, // 5GB
 
-  upload: function (method, directive, file, meta) {
-    const pathPrefix = this.pathPrefix(method, directive, file, meta);
+  upload: async function (method, directive, file, meta) {
+    const pathPrefix = typeof directive.pathPrefix === 'function'
+      ? await directive.pathPrefix.call(method, file, meta)
+      : this.pathPrefix(method, directive, file, meta);
     const path = this.path(directive, pathPrefix);
     const host = this.host(directive.region);
     const url = host + path;

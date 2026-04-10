@@ -43,7 +43,7 @@ Slingshot.GoogleCloud = setDefaults({
     },
   },
 
-  applySignature: function (payload, policy, directive) {
+  applySignature: function (region, payload, policy, directive) {
     payload[this.accessId] = directive[this.accessId];
 
     const payloadToSign = { ...payload };

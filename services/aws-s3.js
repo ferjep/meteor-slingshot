@@ -140,7 +140,7 @@ Slingshot.S3Storage = {
       acl: directive.acl,
 
       'Cache-Control': directive.cacheControl,
-      'Content-Disposition': await this.getContentDisposition(method, directive, file, meta),
+      'Content-Disposition': this.getContentDisposition(method, directive, file, meta),
     };
 
     const bucketUrl = typeof directive.bucketUrl === 'function'
@@ -158,7 +158,7 @@ Slingshot.S3Storage = {
     const storeClass = directive.storageClass || 'STANDARD';
     payload['x-amz-storage-class'] = storeClass;
 
-    await this.applyEncryption(payload, meta);
+    this.applyEncryption(payload, meta);
 
     await this.applySignature(region, payload, policy, directive);
 
