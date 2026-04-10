@@ -1,5 +1,33 @@
 # Slingshot Changelog
 
+## Version 3.2.0
+
+### New Features
+
+- Added `Slingshot.S3Storage.PresignedUrl` — server-side presigned PUT URL using static long-lived AWS keys. No credentials are sent to the browser.
+- Added `Slingshot.S3Storage.TempCredentials.PresignedUrl` — server-side presigned PUT URL using temporary credentials. Drop-in upgrade from `S3Storage.TempCredentials`; reuses the `temporaryCredentials` function as-is. No credentials are sent to the browser.
+
+### Enhancements
+
+- `upload.js`: `transfer()` and `cordovaTransfer()` now support `method: 'PUT'` in upload instructions, sending the raw file body instead of a multipart form.
+- `directive.js`: instructions check now accepts optional `method` field.
+- `Npm.depends` added for `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
+
+### Documentation
+
+- README fully updated for Meteor 3: async/await examples, `updateAsync`, `Assets.getTextAsync`, `this.userId` in directives, AWS SDK v3 for TempCredentials examples.
+- New "S3 Presigned PUT URLs" section with code examples and CORS notes.
+- Updated Security section to explain presigned URL approach.
+- API Reference entries added for both new service types.
+
+## Version 3.1.0
+
+### Enhancements
+
+- Async/await support: all directive callbacks (`authorize`, `key`, `pathPrefix`, `temporaryCredentials`, etc.) may now be `async` functions.
+- `send()` now returns a `Promise` that resolves with the download URL.
+- `validate()` is now async.
+
 ## Version 1.0.0A
 
 ### Announcements
