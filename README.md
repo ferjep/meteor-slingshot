@@ -14,6 +14,8 @@ Please contact ferjep if you can help maintaining this package
 meteor add ferjep:slingshot
 ```
 
+> **Meteor 3**: This package is fully compatible with Meteor 3 (async/await, no Fibers). All directive callbacks (`authorize`, `key`, `pathPrefix`, `temporaryCredentials`, etc.) may be `async` functions. See examples below.
+
 ## Why?
 
 There are many many packages out there that allow file uploads to S3,
@@ -40,14 +42,26 @@ On the client side we can now upload files through to the bucket:
 ```JavaScript
 const uploader = new Slingshot.Upload("myFileUploads");
 
+// send() returns a Promise that resolves with the download URL:
+try {
+  const downloadUrl = await uploader.send(document.getElementById('input').files[0]);
+  await Meteor.users.updateAsync(Meteor.userId(), { $push: { "profile.files": downloadUrl } });
+} catch (error) {
+  // Log service detailed response (only available for non-presigned uploads).
+  console.error('Error uploading', uploader.xhr?.response);
+  alert(error);
+}
+```
+
+A callback is also supported for backward compatibility:
+
+```JavaScript
 uploader.send(document.getElementById('input').files[0], function (error, downloadUrl) {
   if (error) {
-    // Log service detailed response.
-    console.error('Error uploading', uploader.xhr.response);
-    alert (error);
-  }
-  else {
-    Meteor.users.update(Meteor.userId(), {$push: {"profile.files": downloadUrl}});
+    console.error('Error uploading', uploader.xhr?.response);
+    alert(error);
+  } else {
+    Meteor.users.updateAsync(Meteor.userId(), { $push: { "profile.files": downloadUrl } });
   }
 });
 ```
@@ -184,7 +198,7 @@ the user is allowed post pictures to the given album:
 Slingshot.createDirective("picturealbum", Slingshot.GoogleCloud, {
   acl: "public-read",
 
-  authorize: function (file, metaContext) {
+  authorize: async function (file, metaContext) {
     const album = await Albums.findOneAsync(metaContext.albumId);
 
     //Denied if album doesn't exist or if it is not owned by the current user.
@@ -254,44 +268,95 @@ For extra security you can use
 [temporary credentials](http://docs.aws.amazon.com/STS/latest/UsingSTS/CreatingSessionTokens.html) to sign upload requests.
 
 ```JavaScript
-const sts = new AWS.STS(); // Using the AWS SDK to retrieve temporary credentials.
+import { STS } from "@aws-sdk/client-sts";
+
+const stsClient = new STS({ region: "us-east-1" });
 
 Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
   bucket: 'myBucket',
-  async temporaryCredentials (expire) {
-    //AWS dictates that the minimum duration must be 900 seconds:
+  async temporaryCredentials(expire) {
+    // AWS dictates that the minimum duration must be 900 seconds:
     const duration = Math.max(Math.round(expire / 1000), 900);
 
-    // Depends if your using AWS SDK v2 or v3.
-    // for v3 sts.getSessionToken() returns a promise
-    const result = await sts.getSessionToken({ DurationSeconds: duration })
+    const result = await stsClient.getSessionToken({ DurationSeconds: duration });
 
-    return result.Credentials;
-  })
-});
-```
-
-If you are running slingshot on an EC2 instance, you can conveniantly retreive
-your access keys with [`AWS.EC2MetadataCredentials`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/EC2MetadataCredentials.html):
-
-```JavaScript
-const credentials = new AWS.EC2MetadataCredentials();
-
-Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
-  bucket: 'myBucket',
-  temporaryCredentials: async function () {
-    if (credentials.needsRefresh()) {
-      await credentials.get()
-    }
-
-    return {
-      AccessKeyId: credentials.accessKeyId,
-      SecretAccessKey: credentials.secretAccessKey,
-      SessionToken: credentials.sessionToken
-    };
+    return result.Credentials; // { AccessKeyId, SecretAccessKey, SessionToken }
   }
 });
 ```
+
+If you are running slingshot on an EC2 instance, you can conveniently retrieve
+your access keys from the instance metadata:
+
+```JavaScript
+import { STS } from "@aws-sdk/client-sts";
+
+Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials, {
+  bucket: 'myBucket',
+  async temporaryCredentials(expire) {
+    const duration = Math.max(Math.round(expire / 1000), 900);
+
+    // The STS client on EC2 automatically uses the instance role credentials.
+    const stsClient = new STS({ region: "us-east-1" });
+    const result = await stsClient.getSessionToken({ DurationSeconds: duration });
+
+    return result.Credentials;
+  }
+});
+```
+
+#### S3 Presigned PUT URLs (`Slingshot.S3Storage.PresignedUrl` and `Slingshot.S3Storage.TempCredentials.PresignedUrl`)
+
+The most secure option: the server generates a short-lived presigned PUT URL
+scoped to a single object key. The browser uploads directly to that URL — **no
+AWS credentials (access key, secret, or session token) are ever sent to the
+client**.
+
+A leaked presigned URL can only upload to one specific path and expires after
+the directive's `expire` duration.
+
+**Using static keys** (same as `S3Storage` — uses `AWSAccessKeyId` /
+`AWSSecretAccessKey` directly):
+
+```JavaScript
+Slingshot.createDirective('myUploads', Slingshot.S3Storage.PresignedUrl, {
+  bucket: 'myBucket',
+  region: 'us-east-1',
+  AWSAccessKeyId: Meteor.settings.AWSAccessKeyId,
+  AWSSecretAccessKey: Meteor.settings.AWSSecretAccessKey,
+  acl: 'private',
+
+  key(file, meta) {
+    return `uploads/${this.userId}/${Date.now()}-${file.name}`;
+  }
+});
+```
+
+**Using temporary credentials** — a drop-in upgrade from `TempCredentials`.
+The `temporaryCredentials` function is reused exactly as-is:
+
+```JavaScript
+import { STS } from "@aws-sdk/client-sts";
+
+const stsClient = new STS({ region: "us-east-1" });
+
+Slingshot.createDirective('myUploads', Slingshot.S3Storage.TempCredentials.PresignedUrl, {
+  bucket: 'myBucket',
+  region: 'us-east-1',
+  async temporaryCredentials(expire) {
+    const duration = Math.max(Math.round(expire / 1000), 900);
+    const result = await stsClient.getSessionToken({ DurationSeconds: duration });
+    return result.Credentials;
+  },
+
+  key(file, meta) {
+    return `uploads/${this.userId}/${Date.now()}-${file.name}`;
+  }
+});
+```
+
+> **CORS**: add `"PUT"` to your bucket's `AllowedMethods` when using presigned URL directives.
+> The `POST` entry can be kept for other directives or removed if you've migrated everything.
 
 #### S3 Server-Side Encryption (SSE)
 
@@ -328,7 +393,10 @@ Save this file into the `/private` directory of your meteor app and add this
 line to your server-side code:
 
 ```JavaScript
-Slingshot.GoogleCloud.directiveDefault.GoogleSecretKey = Assets.getText('google-cloud-service-key.pem');
+Meteor.startup(async () => {
+  Slingshot.GoogleCloud.directiveDefault.GoogleSecretKey =
+    await Assets.getTextAsync('google-cloud-service-key.pem');
+});
 ```
 
 Declare Google Cloud Storage Directives as follows:
@@ -365,7 +433,7 @@ Slingshot.createDirective("rackspace-files-example", Slingshot.RackspaceFiles, {
   //You must set the cdn if you want the files to be publicly accessible:
   cdn: "https://abcdefghije8c9d17810-ef6d926c15e2b87b22e15225c32e2e17.r19.cf5.rackcdn.com",
 
-  pathPrefix: function (file) {
+  pathPrefix: async function (file) {
     //Store file into a directory by the user's username.
     const user = await Meteor.users.findOneAsync(this.userId);
     return user.username;
@@ -402,10 +470,17 @@ Latency compensation is available in Internet Explorer 10.
 The secret key never leaves the meteor app server. Nobody will be able to upload
 anything to your buckets outside of your meteor app.
 
-Instead of using secret access keys, Slingshot uses a policy document that is
-sent to along with the file AWS S3 or Google Cloud Storage. This policy is
-signed by the secret key and contains all the restrictions that you define in
-the directive. By default a signed policy expires after 5 minutes.
+**Standard services** (`S3Storage`, `TempCredentials`): Slingshot uses a policy
+document signed by the secret key and sends it to the browser along with the
+upload credentials. The policy contains all the restrictions defined in the
+directive and expires after `expire` milliseconds (default 5 minutes).
+
+**Presigned URL services** (`S3Storage.PresignedUrl`,
+`S3Storage.TempCredentials.PresignedUrl`): The server generates a presigned PUT
+URL using the AWS SDK and sends **only that URL** to the browser. No credentials
+— not even temporary ones — are ever transmitted to the client. The URL is
+cryptographically scoped to a single object key and expires after `expire`
+milliseconds. This is the recommended approach for new applications.
 
 ## Adding Support for other storage Services
 
@@ -577,6 +652,37 @@ second is the meta-information that can be passed by the client.
 credentials. It takes a signle argument, which is the minumum desired expiration
 time in milli-seconds and it returns an object that contains `AccessKeyId`,
 `SecretAccessKey` and `SessionToken`.
+
+#### AWS S3 Presigned PUT URL (`Slingshot.S3Storage.PresignedUrl`)
+
+Server-side presigned URL variant using static long-lived keys. The browser
+receives only a signed URL — no credentials are transmitted to the client.
+
+`bucket` String or Function (**required**) - Same as `S3Storage`.
+
+`region` String or Function (optional) - Same as `S3Storage`.
+
+`AWSAccessKeyId` String (**required**) - Can also be set in `Meteor.settings`.
+
+`AWSSecretAccessKey` String (**required**) - Can also be set in `Meteor.settings`.
+
+> **CORS**: add `"PUT"` to your S3 bucket's `AllowedMethods`.
+
+#### AWS S3 Presigned PUT URL with Temporary Credentials (`Slingshot.S3Storage.TempCredentials.PresignedUrl`)
+
+Server-side presigned URL variant using temporary credentials. Drop-in upgrade
+from `S3Storage.TempCredentials` — the `temporaryCredentials` function is
+reused as-is. No credentials are transmitted to the client.
+
+`bucket` String or Function (**required**) - Same as `S3Storage.TempCredentials`.
+
+`region` String or Function (optional) - Same as `S3Storage.TempCredentials`.
+
+`temporaryCredentials` Async Function (**required**) - Same as
+`S3Storage.TempCredentials`. Returns `{ AccessKeyId, SecretAccessKey,
+SessionToken }`.
+
+> **CORS**: add `"PUT"` to your S3 bucket's `AllowedMethods`.
 
 #### Google Cloud Storage (`Slingshot.GoogleCloud`)
 
